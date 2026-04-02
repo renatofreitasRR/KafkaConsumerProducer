@@ -53,10 +53,10 @@ namespace Infrastructure.Repositories
             };
 
             // Mapeamento de colunas
-            bulkCopy.ColumnMappings.Add("Id", "id");
-            bulkCopy.ColumnMappings.Add("Name", "name");
-            bulkCopy.ColumnMappings.Add("Age", "age");
-            bulkCopy.ColumnMappings.Add("Money", "money");
+            bulkCopy.ColumnMappings.Add("Id", "Id");
+            bulkCopy.ColumnMappings.Add("Name", "Name");
+            bulkCopy.ColumnMappings.Add("Age", "Age");
+            bulkCopy.ColumnMappings.Add("Money", "Money");
 
             var table = CreateDataTable(users);
 
@@ -84,7 +84,7 @@ namespace Infrastructure.Repositories
         {
             using (var connection = new SqlConnection(_connectionString))
             {
-                const string sql = "DELETE FROM Users";
+                const string sql = "TRUNCATE TABLE Users";
 
                 using (var command = new SqlCommand(sql, connection))
                 {

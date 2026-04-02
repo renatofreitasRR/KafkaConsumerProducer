@@ -5,6 +5,6 @@
         public string Name { get; set; }
         public int Age { get; set; }
         public int Id { get; set; }
-        public decimal Money { get; set; }
+        public double Money { get; set; }
     }
 }

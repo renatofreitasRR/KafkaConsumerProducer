@@ -1,0 +1,14 @@
+{
+  "type": "record",
+  "name": "User",
+  "namespace": "Domain.Avro",
+  "fields": [
+    { "name": "Name", "type": "string" },
+    { "name": "Age", "type": "int" },
+    { "name": "Id", "type": "int" },
+    {
+      "name": "Money",
+      "type": "double"
+    }
+  ]
+}

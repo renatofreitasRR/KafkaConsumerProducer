@@ -17,7 +17,7 @@ builder.Services.AddTransient<ITopicConsumer, KafkaConsumer>();
 
 builder.Services.AddSingleton<PubSubConfiguration>(new PubSubConfiguration
 {
-    CanProduce = true
+    CanProduce = true,
 });
 
 builder.Services.AddSingleton<TopicConfiguration>(new TopicConfiguration

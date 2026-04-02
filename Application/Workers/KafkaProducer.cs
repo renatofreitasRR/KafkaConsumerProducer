@@ -1,4 +1,7 @@
 ﻿using Confluent.Kafka;
+using Confluent.Kafka.SyncOverAsync;
+using Confluent.SchemaRegistry;
+using Confluent.SchemaRegistry.Serdes;
 using Domain.Repositories;
 using Infrastructure.Configurations;
 using System.Text.Json;
@@ -7,7 +10,7 @@ namespace Application.Workers
 {
     public class KafkaProducer : BackgroundService
     {
-        private IProducer<string, string> _producer;
+        private IProducer<string, Domain.Avro.User> _producer;
         private readonly ILogger<KafkaProducer> _logger;
         private readonly PubSubConfiguration _pubsubConfiguration;
         private readonly TopicConfiguration _topicConfiguration;
@@ -37,7 +40,10 @@ namespace Application.Workers
                     _logger.LogInformation("Kafka Producer Service has started.");
 
                     if (!_pubsubConfiguration.CanProduce)
-                        Task.Delay(1000, stoppingToken).Wait(stoppingToken);
+                    {
+                        await Task.Delay(1000, stoppingToken);
+                        return;
+                    }
 
                     await _userRepository.DeleteAllUsers();
 
@@ -60,8 +66,16 @@ namespace Application.Workers
                 CompressionType = CompressionType.Snappy
             };
 
-            _producer = new ProducerBuilder<string, string>(config)
-                .SetKeySerializer(Serializers.Utf8)
+            var schemaRegistryConfig = new SchemaRegistryConfig
+            {
+                Url = "http://localhost:8081"
+            };
+
+            var schemaRegistry = new CachedSchemaRegistryClient(schemaRegistryConfig);
+
+            _producer = new ProducerBuilder<string, Domain.Avro.User>(config)
+                .SetValueSerializer(new AvroSerializer<Domain.Avro.User>(schemaRegistry)
+                .AsSyncOverAsync())
                 .Build();
         }
 
@@ -71,7 +85,7 @@ namespace Application.Workers
             {
                 using (_logger.BeginScope("Kafka App Produce Sample Data"))
                 {
-                    var totalMessages = 10000000;
+                    var totalMessages = 1000000;
                     var counter = 0;
 
                     if (!cancellationToken.IsCancellationRequested)
@@ -79,20 +93,18 @@ namespace Application.Workers
 
                         for (int i = 0; i < totalMessages; i++)
                         {
-                            var person = new
+                            var user = new Domain.Avro.User
                             {
                                 Name = "Renato",
-                                Age = new Random().Next(18, 60),
-                                Money = new Random().NextDouble() * 1000,
+                                Age = Random.Shared.Next(18, 60),
+                                Money = Random.Shared.NextDouble() * 1000,
                                 Id = i
                             };
 
-                            var json = JsonSerializer.Serialize(person);
-
-                            var msg = new Message<string, string>
+                            var msg = new Message<string, Domain.Avro.User>
                             {
                                 Key = Guid.NewGuid().ToString(),
-                                Value = json
+                                Value = user
                             };
 
                             _producer.Produce(_topicConfiguration.TopicName, msg);

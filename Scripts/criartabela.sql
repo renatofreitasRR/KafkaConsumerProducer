@@ -1,0 +1,7 @@
+
+CREATE TABLE Users (
+    Id INT NOT NULL PRIMARY KEY,
+    Name NVARCHAR(255) NOT NULL,
+    Age INT NOT NULL,
+    Money FLOAT NOT NULL
+);

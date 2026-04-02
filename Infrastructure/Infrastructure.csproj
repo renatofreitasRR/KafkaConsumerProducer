@@ -8,6 +8,8 @@
 
   <ItemGroup>
     <PackageReference Include="Confluent.Kafka" Version="2.13.2" />
+    <PackageReference Include="Confluent.SchemaRegistry" Version="2.13.2" />
+    <PackageReference Include="Confluent.SchemaRegistry.Serdes.Avro" Version="2.13.2" />
     <PackageReference Include="Microsoft.Data.SqlClient" Version="7.0.0" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.5" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.5" />

@@ -1,19 +1,17 @@
-﻿using Application.DTOs;
-using Confluent.Kafka;
+﻿using Confluent.Kafka;
 using Domain.Entities;
 using Domain.Repositories;
 using Infrastructure.Configurations;
 using Infrastructure.Consumers;
 using Infrastructure.Consumers.Interfaces;
 using System.Diagnostics;
-using System.Text.Json;
 using System.Threading.Channels;
 
 namespace Application.Workers
 {
     public class SampleTopicConsumerWorker : BackgroundService
     {
-        private readonly Channel<ConsumeResult<string, string>> _channel;
+        private readonly Channel<ConsumeResult<string, Domain.Avro.User>> _channel;
         private readonly IUserRepository _userRepository;
         private readonly ITopicConsumer _consumer;
         private readonly PubSubConfiguration _pubSubConfiguration;
@@ -25,18 +23,11 @@ namespace Application.Workers
         {
             _userRepository = userRepository;
 
-            _channel = Channel.CreateBounded<ConsumeResult<string, string>>(new BoundedChannelOptions(10000)
+            _channel = Channel.CreateBounded<ConsumeResult<string, Domain.Avro.User>>(new BoundedChannelOptions(10000)
             {
                 SingleWriter = true,
                 SingleReader = false,
                 FullMode = BoundedChannelFullMode.Wait,
-            });
-
-            var consumer = new KafkaConsumer(new TopicConfiguration
-            {
-                Broker = "localhost:9092",
-                ConsumerGroup = "sample-topic",
-                TopicName = "sample-topic",
             });
 
             _pubSubConfiguration = pubSubConfiguration;
@@ -45,20 +36,22 @@ namespace Application.Workers
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            var consumeTask = Task.Run(() => ConsumeTopic(stoppingToken));
-            var printTask = Task.Run(() => PrintMetrics(stoppingToken));
 
             var workers = Enumerable.Range(0, 10)
             .Select(_ => Task.Run(() => ProcessMessages(stoppingToken)));
 
-            await Task.WhenAll(workers.Append(consumeTask).Append(printTask));
+            var consumeTask = Task.Run(() => ConsumeTopic(stoppingToken));
+            //var processTask = Task.Run(() => ProcessMessages(stoppingToken));
+            var metricsTaks = Task.Run(() => PrintMetrics(stoppingToken));
+
+            await Task.WhenAll(workers.Append(consumeTask).Append(metricsTaks));
         }
-     
+
         private async Task ConsumeTopic(CancellationToken stoppingToken)
         {
-            while (!stoppingToken.IsCancellationRequested)
+            while (true)
             {
-                if(_pubSubConfiguration.CanConsume is false)
+                if (_pubSubConfiguration.CanConsume is false)
                 {
                     await Task.Delay(100, stoppingToken);
                     continue;
@@ -68,10 +61,6 @@ namespace Application.Workers
 
                 if (consumeResult.Message is not null)
                 {
-                    var message = consumeResult.Message.Value;
-
-                    //Console.WriteLine($"Received message from Key: {consumeResult.Message.Key} Offset: {consumeResult.Offset}");
-
                     await _channel.Writer.WriteAsync(consumeResult);
                 }
             }
@@ -79,21 +68,29 @@ namespace Application.Workers
 
         private async Task ProcessMessages(CancellationToken stoppingToken)
         {
-            var batch = new List<ConsumeResult<string, string>>();
+            Console.WriteLine("Processando mensagens");
+
+            var batch = new List<ConsumeResult<string, Domain.Avro.User>>();
+            var batchMaxSize = 100;
+            var maxWaitTime = TimeSpan.FromSeconds(1);
+
+            var lastFlush = Stopwatch.StartNew();
 
             await foreach (var result in _channel.Reader.ReadAllAsync(stoppingToken))
             {
-                //Console.WriteLine($"Processing message: {result}");
-
                 try
                 {
                     batch.Add(result);
 
-                    if (batch.Count >= 100)
+                    var shouldFlushBySize = batch.Count >= batchMaxSize;
+                    var shouldFlushByTime = lastFlush.Elapsed >= maxWaitTime;
+
+                    if (shouldFlushBySize || shouldFlushByTime)
                     {
                         await ProcessBatch(batch);
 
                         batch.Clear();
+                        lastFlush.Restart();
                     }
 
                     Interlocked.Increment(ref _processedMessageCount);
@@ -106,7 +103,7 @@ namespace Application.Workers
             }
         }
 
-        private async Task ProcessBatch(List<ConsumeResult<string, string>> batch)
+        private async Task ProcessBatch(List<ConsumeResult<string, Domain.Avro.User>> batch)
         {
             var users = new List<User>();
 
@@ -114,12 +111,18 @@ namespace Application.Workers
             {
                 try
                 {
-                    var dto = JsonSerializer.Deserialize<UserDTO>(result.Message.Value);
+                    var dto = result.Message.Value;
 
                     if (dto == null)
                         continue;
 
-                    users.Add(dto.ToUserEntity());
+                    users.Add(new User
+                    {
+                        Name = dto.Name,
+                        Age = dto.Age,
+                        Id = dto.Id,
+                        Money = dto.Money
+                    });
                 }
                 catch (Exception ex)
                 {
@@ -132,9 +135,15 @@ namespace Application.Workers
             if (users.Count == 0)
                 return;
 
-            await _userRepository.InsertBatch(users);
-
-            _consumer.Commit(batch.Last());
+            try
+            {
+                await _userRepository.InsertBatch(users);
+                _consumer.Commit(batch.Last());
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error inserting batch: {ex.Message}");
+            }
         }
 
         private async Task PrintMetrics(CancellationToken token)
