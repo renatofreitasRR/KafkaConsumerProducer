@@ -18,6 +18,7 @@ builder.Services.AddTransient<ITopicConsumer, KafkaConsumer>();
 builder.Services.AddSingleton<PubSubConfiguration>(new PubSubConfiguration
 {
     CanProduce = true,
+    CanConsume = false
 });
 
 builder.Services.AddSingleton<TopicConfiguration>(new TopicConfiguration
@@ -29,7 +30,8 @@ builder.Services.AddSingleton<TopicConfiguration>(new TopicConfiguration
 
 
 builder.Services.AddHostedService<KafkaProducer>();
-builder.Services.AddHostedService<SampleTopicConsumerWorker>();
+//builder.Services.AddHostedService<SampleTopicConsumerWorker>();
+builder.Services.AddHostedService<TopicConsumerBasic>();
 
 
 var app = builder.Build();

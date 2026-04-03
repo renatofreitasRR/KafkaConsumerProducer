@@ -37,7 +37,7 @@ namespace Application.Workers
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
 
-            var workers = Enumerable.Range(0, 10)
+            var workers = Enumerable.Range(0,1)
             .Select(_ => Task.Run(() => ProcessMessages(stoppingToken)));
 
             var consumeTask = Task.Run(() => ConsumeTopic(stoppingToken));
@@ -131,14 +131,22 @@ namespace Application.Workers
                     );
                 }
             }
-
+           
             if (users.Count == 0)
                 return;
 
             try
             {
                 await _userRepository.InsertBatch(users);
-                _consumer.Commit(batch.Last());
+
+                var offsets = batch
+                   .GroupBy(x => x.TopicPartition)
+                   .Select(g => new TopicPartitionOffset(
+                       g.Key,
+                       g.Max(x => x.Offset.Value) + 1
+                   ));
+
+                _consumer.Commit(offsets);
             }
             catch (Exception ex)
             {

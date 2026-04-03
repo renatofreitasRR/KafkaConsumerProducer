@@ -15,6 +15,7 @@ namespace Application.Workers
         private readonly PubSubConfiguration _pubsubConfiguration;
         private readonly TopicConfiguration _topicConfiguration;
         private readonly IUserRepository _userRepository;
+        private int MESSAGES_TO_PRODUCE = 1000000;
 
         public KafkaProducer(
             ILogger<KafkaProducer> logger,
@@ -85,7 +86,7 @@ namespace Application.Workers
             {
                 using (_logger.BeginScope("Kafka App Produce Sample Data"))
                 {
-                    var totalMessages = 1000000;
+                    var totalMessages = MESSAGES_TO_PRODUCE;
                     var counter = 0;
 
                     if (!cancellationToken.IsCancellationRequested)

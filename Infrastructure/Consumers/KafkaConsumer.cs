@@ -27,10 +27,10 @@ namespace Infrastructure.Consumers
                 EnablePartitionEof = false,
 
                 //tuning pra benchmark
-                FetchMinBytes = 1024 * 1024,
-                FetchWaitMaxMs = 100,
-                QueuedMinMessages = 100000,
-                MaxPollIntervalMs = 300000
+                //FetchMinBytes = 1024 * 1024,
+                FetchWaitMaxMs = 1000,
+                //QueuedMinMessages = 100000,
+                //MaxPollIntervalMs = 300000
             };
 
             var schemaRegistryConfig = new SchemaRegistryConfig
@@ -55,6 +55,7 @@ namespace Infrastructure.Consumers
         public void Commit()
         {
             _consumer.Commit();
+
         }
 
         public void StoreOffset(ConsumeResult<string, User> consumeResult)
@@ -72,12 +73,26 @@ namespace Infrastructure.Consumers
             _consumer.Commit(offsets);
         }
 
-
         public ConsumeResult<string, User> Consume(CancellationToken cancellationToken)
         {
             try
             {
                 var consumeResult = _consumer.Consume(cancellationToken);
+                return consumeResult;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogInformation($"Error kafka: {ex.Message}");
+
+                throw;
+            }
+        }
+
+        public ConsumeResult<string, User> Consume(TimeSpan time)
+        {
+            try
+            {
+                var consumeResult = _consumer.Consume(time);
                 return consumeResult;
             }
             catch (Exception ex)

@@ -11,5 +11,6 @@ namespace Infrastructure.Consumers.Interfaces
         void Commit(IEnumerable<TopicPartitionOffset> offsets);
         void Commit();
         ConsumeResult<string, User> Consume(CancellationToken cancellationToken);
+        ConsumeResult<string, User> Consume(TimeSpan time);
     }
 }
