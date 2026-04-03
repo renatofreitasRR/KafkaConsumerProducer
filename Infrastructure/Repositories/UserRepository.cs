@@ -26,7 +26,7 @@ namespace Infrastructure.Repositories
 
                 using (var command = new SqlCommand(sql, connection))
                 {
-                    command.Parameters.Add("@Id", SqlDbType.Int).Value = user.Id;
+                    command.Parameters.Add("@Id", SqlDbType.UniqueIdentifier).Value = user.Id;
                     command.Parameters.Add("@Name", SqlDbType.NVarChar).Value = user.Name;
                     command.Parameters.Add("@Age", SqlDbType.Int).Value = user.Age;
                     command.Parameters.Add("@Money", SqlDbType.Decimal).Value = user.Money;
@@ -67,7 +67,7 @@ namespace Infrastructure.Repositories
         {
             var table = new DataTable();
 
-            table.Columns.Add("id", typeof(int));
+            table.Columns.Add("id", typeof(Guid));
             table.Columns.Add("name", typeof(string));
             table.Columns.Add("age", typeof(int));
             table.Columns.Add("money", typeof(decimal));

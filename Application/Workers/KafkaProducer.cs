@@ -15,8 +15,6 @@ namespace Application.Workers
         private readonly PubSubConfiguration _pubsubConfiguration;
         private readonly TopicConfiguration _topicConfiguration;
         private readonly IUserRepository _userRepository;
-        private int MESSAGES_TO_PRODUCE = 1000000;
-
         public KafkaProducer(
             ILogger<KafkaProducer> logger,
             PubSubConfiguration pubSubConfiguration,
@@ -46,7 +44,7 @@ namespace Application.Workers
                         return;
                     }
 
-                    await _userRepository.DeleteAllUsers();
+                    //await _userRepository.DeleteAllUsers();
 
                     await Produce(stoppingToken).ConfigureAwait(false);
                 }
@@ -86,7 +84,7 @@ namespace Application.Workers
             {
                 using (_logger.BeginScope("Kafka App Produce Sample Data"))
                 {
-                    var totalMessages = MESSAGES_TO_PRODUCE;
+                    var totalMessages = _pubsubConfiguration.TotalMessages;
                     var counter = 0;
 
                     if (!cancellationToken.IsCancellationRequested)
@@ -99,7 +97,7 @@ namespace Application.Workers
                                 Name = "Renato",
                                 Age = Random.Shared.Next(18, 60),
                                 Money = Random.Shared.NextDouble() * 1000,
-                                Id = i
+                                Id = Guid.NewGuid()
                             };
 
                             var msg = new Message<string, Domain.Avro.User>

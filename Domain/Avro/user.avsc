@@ -3,9 +3,21 @@
   "name": "User",
   "namespace": "Domain.Avro",
   "fields": [
-    { "name": "Name", "type": "string" },
-    { "name": "Age", "type": "int" },
-    { "name": "Id", "type": "int" },
+    {
+      "name": "Name",
+      "type": "string"
+    },
+    {
+      "name": "Age",
+      "type": "int"
+    },
+    {
+      "name": "Id",
+      "type": {
+        "type": "string",
+        "logicalType": "uuid"
+      }
+    },
     {
       "name": "Money",
       "type": "double"

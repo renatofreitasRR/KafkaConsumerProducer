@@ -13,6 +13,7 @@ namespace Application.Workers
         private readonly ITopicConsumer _consumer;
         private readonly PubSubConfiguration _pubSubConfiguration;
         private const int BATCH_SIZE = 1000;
+        private long _counter = 0;
 
         public TopicConsumerBasic(IUserRepository userRepository, ITopicConsumer topicConsumer, PubSubConfiguration pubSubConfiguration)
         {
@@ -26,9 +27,9 @@ namespace Application.Workers
         {
             var batchMessages = new List<ConsumeResult<string, Domain.Avro.User>>();
             var users = new List<User>();
-            var timeFlush = Stopwatch.StartNew();
-            var timeTotalBatch = Stopwatch.StartNew();
-            var maxWaitTime = TimeSpan.FromSeconds(3);
+
+            var timerPerBatch = Stopwatch.StartNew();
+            var timeEndToEnd = Stopwatch.StartNew();
 
             while (!stoppingToken.IsCancellationRequested)
             {
@@ -44,44 +45,36 @@ namespace Application.Workers
                 {
                     var userMessage = consumeResult?.Message;
 
-                    if (userMessage == null)
+                    if (userMessage != null)
                     {
-                        if (
-                            (timeFlush.Elapsed > maxWaitTime) &&
-                            (batchMessages.Any() && users.Any())
-                            )
+                        users.Add(new User
                         {
-                            await Flush(batchMessages, users);
-                            timeFlush.Restart();
-                        }
+                            Name = userMessage.Value.Name,
+                            Age = userMessage.Value.Age,
+                            Id = userMessage.Value.Id,
+                            Money = userMessage.Value.Money
+                        });
 
-                        continue;
+                        batchMessages.Add(consumeResult);
                     }
 
-                    users.Add(new User
-                    {
-                        Name = userMessage.Value.Name,
-                        Age = userMessage.Value.Age,
-                        Id = userMessage.Value.Id,
-                        Money = userMessage.Value.Money
-                    });
-
-                    batchMessages.Add(consumeResult);
-
-                    if (users.Count == BATCH_SIZE)
+                    if (users.Count >= BATCH_SIZE || (userMessage is null && batchMessages.Any()))
                     {
                         await Flush(batchMessages, users);
-
-                        Console.WriteLine($"Batch of {BATCH_SIZE} messages processed in {timeTotalBatch.Elapsed.TotalSeconds} seconds.");
-                        timeTotalBatch.Restart();
+                        Console.WriteLine($"{_counter} Mensagens processadas em {timerPerBatch.Elapsed.TotalSeconds}s ");
+                        timerPerBatch.Restart();
                     }
 
-                    timeFlush.Restart();
+                    if (_counter == _pubSubConfiguration.TotalMessages)
+                    {
+                        timeEndToEnd.Stop();
+                        Console.WriteLine($"Todas as mensagens foram consumidas consumidas em {timeEndToEnd.Elapsed.TotalSeconds} segundos");
+                    }
 
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"Error processing message: {ex.Message} key: {consumeResult.Message.Key} offset: {consumeResult.Offset}");
+                    Console.WriteLine($"Error processing message: {ex.Message} key: {consumeResult?.Message?.Key} offset: {consumeResult?.Offset}");
                     continue;
                 }
             }
@@ -90,12 +83,29 @@ namespace Application.Workers
 
         private async Task Flush(List<ConsumeResult<string, Domain.Avro.User>> batchMessages, List<User> users)
         {
-            await _userRepository.InsertBatch(users);
+            try
+            {
+                await _userRepository.InsertBatch(users);
 
-            _consumer.Commit(batchMessages.Last());
+                var offsets = batchMessages
+                 .GroupBy(x => x.TopicPartition)
+                 .Select(g => new TopicPartitionOffset(
+                     g.Key,
+                     g.Max(x => x.Offset.Value) + 1
+                 ));
 
-            batchMessages.Clear();
-            users.Clear();
+                _consumer.Commit(offsets);
+                _counter += users.Count;
+
+                batchMessages.Clear();
+                users.Clear();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error inserting batch: {ex.Message} Ids de {users.Min(x => x.Id)} a {users.Max(x => x.Id)} Offsets de {batchMessages.Min(x => x.Offset.Value)} a {batchMessages.Max(x => x.Offset.Value)}");
+                return;
+            }
+
         }
     }
 }

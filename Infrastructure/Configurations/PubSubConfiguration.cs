@@ -4,6 +4,7 @@
     {
         public bool CanConsume { get; set; }
         public bool CanProduce { get; set; }
+        public long TotalMessages { get; set; }
 
         public void EnableConsumption()
         {

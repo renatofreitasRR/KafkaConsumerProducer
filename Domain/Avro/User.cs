@@ -17,11 +17,11 @@ namespace Domain.Avro
 	public partial class User : global::Avro.Specific.ISpecificRecord
 	{
 		public static global::Avro.Schema _SCHEMA = global::Avro.Schema.Parse("{\"type\":\"record\",\"name\":\"User\",\"namespace\":\"Domain.Avro\",\"fields\":[{\"name\":\"Name\"" +
-				",\"type\":\"string\"},{\"name\":\"Age\",\"type\":\"int\"},{\"name\":\"Id\",\"type\":\"int\"},{\"name\"" +
-				":\"Money\",\"type\":\"double\"}]}");
+				",\"type\":\"string\"},{\"name\":\"Age\",\"type\":\"int\"},{\"name\":\"Id\",\"type\":{\"type\":\"strin" +
+				"g\",\"logicalType\":\"uuid\"}},{\"name\":\"Money\",\"type\":\"double\"}]}");
 		private string _Name;
 		private int _Age;
-		private int _Id;
+		private System.Guid _Id;
 		private double _Money;
 		public virtual global::Avro.Schema Schema
 		{
@@ -52,7 +52,7 @@ namespace Domain.Avro
 				this._Age = value;
 			}
 		}
-		public int Id
+		public System.Guid Id
 		{
 			get
 			{
@@ -91,7 +91,7 @@ namespace Domain.Avro
 			{
 			case 0: this.Name = (System.String)fieldValue; break;
 			case 1: this.Age = (System.Int32)fieldValue; break;
-			case 2: this.Id = (System.Int32)fieldValue; break;
+			case 2: this.Id = (System.Guid)fieldValue; break;
 			case 3: this.Money = (System.Double)fieldValue; break;
 			default: throw new global::Avro.AvroRuntimeException("Bad index " + fieldPos + " in Put()");
 			};

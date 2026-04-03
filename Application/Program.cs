@@ -18,7 +18,8 @@ builder.Services.AddTransient<ITopicConsumer, KafkaConsumer>();
 builder.Services.AddSingleton<PubSubConfiguration>(new PubSubConfiguration
 {
     CanProduce = true,
-    CanConsume = false
+    CanConsume = false,
+    TotalMessages = 100000
 });
 
 builder.Services.AddSingleton<TopicConfiguration>(new TopicConfiguration
