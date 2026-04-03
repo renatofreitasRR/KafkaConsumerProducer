@@ -3,6 +3,7 @@ using Domain.Entities;
 using Domain.Repositories;
 using Infrastructure.Configurations;
 using Infrastructure.Consumers.Interfaces;
+using Infrastructure.HttpClients;
 using System.Diagnostics;
 
 namespace Application.Workers
@@ -11,14 +12,19 @@ namespace Application.Workers
     {
         private readonly IUserRepository _userRepository;
         private readonly ITopicConsumer _consumer;
+        private readonly IUserApiClient _userApiClient;
         private readonly PubSubConfiguration _pubSubConfiguration;
         private const int BATCH_SIZE = 1000;
         private long _counter = 0;
 
-        public TopicConsumerBasic(IUserRepository userRepository, ITopicConsumer topicConsumer, PubSubConfiguration pubSubConfiguration)
+        public TopicConsumerBasic(
+            IUserRepository userRepository,
+            ITopicConsumer topicConsumer,
+            IUserApiClient userApiClient,
+            PubSubConfiguration pubSubConfiguration)
         {
             _userRepository = userRepository;
-
+            _userApiClient = userApiClient;
             _pubSubConfiguration = pubSubConfiguration;
             _consumer = topicConsumer;
         }
@@ -97,6 +103,8 @@ namespace Application.Workers
                 _consumer.Commit(offsets);
                 _counter += users.Count;
 
+                await NotifyNewUsers(users);
+
                 batchMessages.Clear();
                 users.Clear();
             }
@@ -105,7 +113,15 @@ namespace Application.Workers
                 Console.WriteLine($"Error inserting batch: {ex.Message} Ids de {users.Min(x => x.Id)} a {users.Max(x => x.Id)} Offsets de {batchMessages.Min(x => x.Offset.Value)} a {batchMessages.Max(x => x.Offset.Value)}");
                 return;
             }
+        }
 
+        private async Task NotifyNewUsers(List<User> users)
+        {
+            var tasks = users.Select(user =>
+             _userApiClient.NotifyNewUser(user)
+            );
+
+            await Task.WhenAll(tasks);
         }
     }
 }

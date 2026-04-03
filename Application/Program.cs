@@ -3,6 +3,7 @@ using Domain.Repositories;
 using Infrastructure.Configurations;
 using Infrastructure.Consumers;
 using Infrastructure.Consumers.Interfaces;
+using Infrastructure.HttpClients;
 using Infrastructure.Repositories;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -12,6 +13,7 @@ builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 
 builder.Services.AddTransient<IUserRepository, UserRepository>();
+builder.Services.AddTransient<IUserApiClient, FakeUserAPIClient>();
 
 builder.Services.AddTransient<ITopicConsumer, KafkaConsumer>();
 
@@ -19,7 +21,7 @@ builder.Services.AddSingleton<PubSubConfiguration>(new PubSubConfiguration
 {
     CanProduce = true,
     CanConsume = false,
-    TotalMessages = 100000
+    TotalMessages = 1000000
 });
 
 builder.Services.AddSingleton<TopicConfiguration>(new TopicConfiguration
